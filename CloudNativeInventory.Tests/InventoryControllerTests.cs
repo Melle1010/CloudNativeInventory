@@ -25,7 +25,7 @@ public class InventoryControllerTests
         // Arrange
         var options = CreateNewContextOptions();
         using var context = new InventoryDbContext(options);
-        context.Products.Add(new Product { Id = 1, Name = "Test Item", Price = 100, StockQuantity = 5 });
+        //context.Products.Add(new Product { Id = 1, Name = "Test Item", Price = 100, StockQuantity = 5 });
         await context.SaveChangesAsync();
 
         var mockConfig = new Mock<IConfiguration>();
