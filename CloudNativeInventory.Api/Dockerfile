@@ -23,4 +23,4 @@ USER app
 
 COPY --from=build /app/publish .
 
-ENTRYPOINT ["dotnet", "CloudNativeInventory.Api.dll"]
+ENTRYPOINT ["dotnet", "CloudNativeInventory.Api.dll"]	
