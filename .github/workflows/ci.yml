@@ -46,7 +46,8 @@ jobs:
             --registry melvin \
             --image inventory-api:${{ github.sha }} \
             --image inventory-api:latest \
-            .
+            --file CloudNativeInventory.Api/Dockerfile \ 
+            CloudNativeInventory.Api
 
       - name: Deploy to Container Apps
         run: |
