@@ -1,96 +1,96 @@
-# ADR-001: Molnarkitektur och säkerhet för CloudNativeInventory API
+# ADR-001: Cloud Architecture and Security for CloudNativeInventory API
 
-**Datum:** 2026-05-17  
-**Status:** Godkänd  
-**Författare:** Melvin Danielsson
-
----
-
-## Kontext
-
-CloudNativeInventory API är en .NET 9-applikation som hanterar lagerdata och integrerar mot ett externt system via en hemlig API-nyckel (`VendorApiKey`). Applikationen behövde göras produktionsnära genom containerisering, CI/CD och säker konfigurationshantering i Azure.
-
-Tre centrala beslut behövde fattas:
-1. Vilken Azure-tjänst ska hosta containern?
-2. Hur ska Docker-images lagras och distribueras?
-3. Hur ska hemligheter hanteras säkert?
+**Date:** 2026-05-17  
+**Status:** Approved  
+**Author:** Melvin Danielsson
 
 ---
 
-## Beslut 1: Azure Container Apps (istället för Azure App Service)
+## Context
 
-### Alternativ som övervägdes
-- **Azure App Service** – Microsofts traditionella plattform för webbapplikationer med stöd för containers.
-- **Azure Container Apps** – En container-nativ plattform byggd specifikt för containeriserade arbetsbelastningar.
+CloudNativeInventory API is a .NET 9 application that manages inventory data and integrates with an external system via a secret API key (`VendorApiKey`). The application needed to be brought closer to production-ready through containerization, CI/CD, and secure configuration management in Azure.
 
-### Beslut
-Jag valde **Azure Container Apps**.
-
-### Motivering
-Azure Container Apps är byggt från grunden för containers och erbjuder en enklare och mer naturlig integration med Azure Container Registry via Managed Identity, utan behov av extra konfiguration. Plattformen har en generös gratistier baserad på faktisk förbrukning (Consumption-plan), vilket innebär låg kostnad för ett projekt med sporadisk trafik. App Service kräver mer konfiguration för containers och är mer lämpat för traditionella webbapplikationer. Container Apps stödjer också direkt integration med Managed Identity för Key Vault-åtkomst, vilket är centralt för säkerhetsarkitekturen i detta projekt.
-
-### Konsekvenser
-- Enklare deployment-pipeline eftersom Azure Container Apps nativt förstår container-images.
-- Inbyggd Log Analytics workspace skapas automatiskt, vilket ger loggning utan extra konfiguration.
-- Skalning till noll när appen inte används, vilket minimerar kostnader.
+Three key decisions needed to be made:
+1. Which Azure service should host the container?
+2. How should Docker images be stored and distributed?
+3. How should secrets be managed securely?
 
 ---
 
-## Beslut 2: Azure Container Registry (istället för Docker Hub)
+## Decision 1: Azure Container Apps (instead of Azure App Service)
 
-### Alternativ som övervägdes
-- **Docker Hub** – Den mest välkända publika container-registret.
-- **Azure Container Registry (ACR)** – Microsofts privata container-register, integrerat med Azure-ekosystemet.
+### Alternatives Considered
+- **Azure App Service** – Microsoft's traditional platform for web applications with container support.
+- **Azure Container Apps** – A container-native platform built specifically for containerized workloads.
 
-### Beslut
-Jag valde **Azure Container Registry** med Basic SKU.
+### Decision
+I chose **Azure Container Apps**.
 
-### Motivering
-ACR är ett privat register vilket innebär att Docker-images inte är publikt tillgängliga, till skillnad från Docker Hub där images är publika som standard. Viktigare är att ACR integrerar direkt med Azure Managed Identity – Container Apps kan hämta images från ACR utan lösenord eller lagrade credentials. Docker Hub skulle kräva att credentials lagrades som hemligheter i pipeline, vilket ökar attackytan. Basic SKU räcker för projektets behov (en image, låg trafik) och kostar minimalt.
+### Rationale
+Azure Container Apps is built from the ground up for containers and offers simpler, more natural integration with Azure Container Registry via Managed Identity, without any extra configuration. The platform has a generous free tier based on actual consumption (Consumption plan), which means low cost for a project with sporadic traffic. App Service requires more configuration for containers and is better suited for traditional web applications. Container Apps also supports direct integration with Managed Identity for Key Vault access, which is central to the security architecture of this project.
 
-### Konsekvenser
-- Images är privata och åtkomst styrs via Azure RBAC.
-- Ingen manuell lösenordshantering krävs för image-pulls i produktion.
-- CI/CD-pipelinen använder `az acr build` för att bygga och pusha images direkt i Azure, utan att exponera registry-credentials i pipeline-loggar.
-
----
-
-## Beslut 3: Azure Key Vault med Managed Identity (istället för hårdkodade hemligheter)
-
-### Alternativ som övervägdes
-- **Hårdkodade hemligheter i appsettings.json** – Enkelt men extremt osäkert; hemligheter hamnar i versionshantering.
-- **Environment variables i Container App** – Bättre än hårdkodning men hemligheter syns i Azure Portal i klartext.
-- **Azure Key Vault med Managed Identity** – Hemligheter lagras krypterat i ett dedikerat valv och hämtas utan lösenord via identitetsbaserad åtkomst.
-
-### Beslut
-Jag valde **Azure Key Vault med System-Assigned Managed Identity**.
-
-### Motivering
-Hårdkodade hemligheter i kod eller versionshanterade filer är en av de vanligaste och allvarligaste säkerhetsbristerna (OWASP Top 10). Key Vault separerar hemligheter helt från koden och versionhanteringen. Med Managed Identity behövs inga lagrade credentials överhuvudtaget – Azure hanterar autentiseringen internt. Detta implementerar principen om minsta behörighet: Container App:en har tilldelats rollen **Key Vault Secrets Officer** vilket ger den tillgång att läsa hemligheter, men inte administrera Key Vault eller andra Azure-resurser.
-
-I `Program.cs` används `DefaultAzureCredential` som automatiskt identifierar och använder Managed Identity i produktionsmiljön, medan lokala utvecklare fortsätter använda `appsettings.json` utan förändring.
-
-### Konsekvenser
-- `VendorApiKey` finns aldrig i klartext i kod, versionshanterade filer eller pipeline-loggar.
-- Rotering av hemligheter kan göras i Key Vault utan att ändra eller redeployera applikationen.
-- Åtkomst kan spåras och auditeras via Key Vault-loggar.
-- Principen om minsta behörighet uppfylls: appen kan bara läsa hemligheter, inte modifiera dem.
+### Consequences
+- Simpler deployment pipeline since Azure Container Apps natively understands container images.
+- A built-in Log Analytics workspace is created automatically, providing logging without additional configuration.
+- Scales to zero when the app is not in use, minimizing costs.
 
 ---
 
-## Beslut 4: GitHub Actions för CI/CD
+## Decision 2: Azure Container Registry (instead of Docker Hub)
 
-### Motivering
-GitHub Actions är direkt integrerat med GitHub-repot och kräver ingen separat CI/CD-server. Pipelinen kör `dotnet restore`, `dotnet build` och `dotnet test` vid varje push och pull request, vilket säkerställer att trasig kod aldrig når produktion. Vid godkända tester på main/master-branchen byggs en ny Docker-image, taggas med commit-SHA för spårbarhet, och deployar automatiskt till Container Apps. Commit-SHA som image-tagg innebär att varje deployment är direkt spårbar till en specifik kodändring.
+### Alternatives Considered
+- **Docker Hub** – The most well-known public container registry.
+- **Azure Container Registry (ACR)** – Microsoft's private container registry, integrated with the Azure ecosystem.
+
+### Decision
+I chose **Azure Container Registry** with the Basic SKU.
+
+### Rationale
+ACR is a private registry, meaning Docker images are not publicly accessible — unlike Docker Hub, where images are public by default. More importantly, ACR integrates directly with Azure Managed Identity, allowing Container Apps to pull images from ACR without passwords or stored credentials. Docker Hub would require credentials to be stored as secrets in the pipeline, increasing the attack surface. The Basic SKU is sufficient for this project's needs (one image, low traffic) and costs very little.
+
+### Consequences
+- Images are private and access is controlled via Azure RBAC.
+- No manual password management is required for image pulls in production.
+- The CI/CD pipeline uses `az acr build` to build and push images directly in Azure, without exposing registry credentials in pipeline logs.
 
 ---
 
-## Sammanfattning av infrastrukturbeslut
+## Decision 3: Azure Key Vault with Managed Identity (instead of hardcoded secrets)
 
-| Komponent | Val | Alternativ | Huvudskäl |
+### Alternatives Considered
+- **Hardcoded secrets in appsettings.json** – Simple but extremely insecure; secrets end up in version control.
+- **Environment variables in the Container App** – Better than hardcoding, but secrets are visible in the Azure Portal in plain text.
+- **Azure Key Vault with Managed Identity** – Secrets are stored encrypted in a dedicated vault and retrieved without passwords via identity-based access.
+
+### Decision
+I chose **Azure Key Vault with System-Assigned Managed Identity**.
+
+### Rationale
+Hardcoded secrets in code or version-controlled files are one of the most common and serious security vulnerabilities (OWASP Top 10). Key Vault separates secrets entirely from code and version control. With Managed Identity, no stored credentials are needed at all — Azure handles authentication internally. This implements the principle of least privilege: the Container App has been assigned the **Key Vault Secrets Officer** role, giving it access to read secrets but not to administer the Key Vault or other Azure resources.
+
+In `Program.cs`, `DefaultAzureCredential` is used, which automatically detects and uses Managed Identity in the production environment, while local developers continue using `appsettings.json` without any changes.
+
+### Consequences
+- `VendorApiKey` is never present in plain text in code, version-controlled files, or pipeline logs.
+- Secret rotation can be done in Key Vault without modifying or redeploying the application.
+- Access can be tracked and audited via Key Vault logs.
+- The principle of least privilege is met: the app can only read secrets, not modify them.
+
+---
+
+## Decision 4: GitHub Actions for CI/CD
+
+### Rationale
+GitHub Actions is directly integrated with the GitHub repository and requires no separate CI/CD server. The pipeline runs `dotnet restore`, `dotnet build`, and `dotnet test` on every push and pull request, ensuring that broken code never reaches production. When tests pass on the main/master branch, a new Docker image is built, tagged with the commit SHA for traceability, and automatically deployed to Container Apps. Using the commit SHA as the image tag means every deployment is directly traceable to a specific code change.
+
+---
+
+## Summary of Infrastructure Decisions
+
+| Component | Choice | Alternative | Main Reason |
 |---|---|---|---|
-| Hosting | Azure Container Apps | App Service | Container-nativt, kostnad, Managed Identity |
-| Registry | Azure Container Registry | Docker Hub | Privat, lösenordslös integration |
-| Hemligheter | Azure Key Vault | Environment variables | Separation, kryptering, minsta behörighet |
-| CI/CD | GitHub Actions | Azure DevOps | Direkt GitHub-integration, enkelt |
-| Auth-modell | Managed Identity | Service Principal | Inga lagrade credentials |
+| Hosting | Azure Container Apps | App Service | Container-native, cost, Managed Identity |
+| Registry | Azure Container Registry | Docker Hub | Private, passwordless integration |
+| Secrets | Azure Key Vault | Environment variables | Separation, encryption, least privilege |
+| CI/CD | GitHub Actions | Azure DevOps | Direct GitHub integration, simplicity |
+| Auth model | Managed Identity | Service Principal | No stored credentials |
