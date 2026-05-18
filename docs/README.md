@@ -157,7 +157,7 @@ GET /api/inventory/system/verify-integration  Verifies Key Vault integration
 
 ## Architecture Decisions
 
-See [docs/adr-001-cloud-architecture.md](docs/adr-001-cloud-architecture.md) for the full rationale behind:
+See [adr-001-cloud-architecture.md](adr-001-cloud-architecture.md) for the full rationale behind:
 
 - Choosing Azure Container Apps over App Service
 - Choosing Azure Container Registry over Docker Hub
