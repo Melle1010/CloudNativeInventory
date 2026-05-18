@@ -11,9 +11,9 @@ Ett .NET 9 Web API för lagerhantering, byggt för att demonstrera containeriser
 | Azure Key Vault | Lagrar hemligheter säkert |
 | Log Analytics Workspace | Loggning och övervakning |
 
-För motivering av dessa val, se [docs/adr-001-cloud-architecture.md](docs/adr-001-cloud-architecture.md).
+För motivering av dessa val, se [ADR-001](adr-001-cloud-architecture.md).
 
-Här är min dokumentation också [docs/K5U1%20Documentation.md](docs/K5U1%20Documentation.md).
+Här är min dokumentation också [Documentation](K5U1%20Documentation.md).
 ---
 
 ## Köra API:t lokalt
