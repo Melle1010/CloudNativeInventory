@@ -41,6 +41,7 @@ using (var scope = app.Services.CreateScope())
     {
         db.Products.Add(new Product { Id = 1, Name = "Laptop", Price = 9999, StockQuantity = 10 });
         db.Products.Add(new Product { Id = 2, Name = "IPhone", Price = 5656, StockQuantity = 65 });
+        db.Products.Add(new Product { Id = 3, Name = "Xbox", Price = 7499, StockQuantity = 431 });
         db.SaveChanges();
     }
 }
