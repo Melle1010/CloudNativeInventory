@@ -24,7 +24,7 @@ Tre centrala beslut behövde fattas:
 - **Azure Container Apps** – En container-nativ plattform byggd specifikt för containeriserade arbetsbelastningar.
 
 ### Beslut
-Vi valde **Azure Container Apps**.
+Jag valde **Azure Container Apps**.
 
 ### Motivering
 Azure Container Apps är byggt från grunden för containers och erbjuder en enklare och mer naturlig integration med Azure Container Registry via Managed Identity, utan behov av extra konfiguration. Plattformen har en generös gratistier baserad på faktisk förbrukning (Consumption-plan), vilket innebär låg kostnad för ett projekt med sporadisk trafik. App Service kräver mer konfiguration för containers och är mer lämpat för traditionella webbapplikationer. Container Apps stödjer också direkt integration med Managed Identity för Key Vault-åtkomst, vilket är centralt för säkerhetsarkitekturen i detta projekt.
@@ -43,7 +43,7 @@ Azure Container Apps är byggt från grunden för containers och erbjuder en enk
 - **Azure Container Registry (ACR)** – Microsofts privata container-register, integrerat med Azure-ekosystemet.
 
 ### Beslut
-Vi valde **Azure Container Registry** med Basic SKU.
+Jag valde **Azure Container Registry** med Basic SKU.
 
 ### Motivering
 ACR är ett privat register vilket innebär att Docker-images inte är publikt tillgängliga, till skillnad från Docker Hub där images är publika som standard. Viktigare är att ACR integrerar direkt med Azure Managed Identity – Container Apps kan hämta images från ACR utan lösenord eller lagrade credentials. Docker Hub skulle kräva att credentials lagrades som hemligheter i pipeline, vilket ökar attackytan. Basic SKU räcker för projektets behov (en image, låg trafik) och kostar minimalt.
@@ -63,7 +63,7 @@ ACR är ett privat register vilket innebär att Docker-images inte är publikt t
 - **Azure Key Vault med Managed Identity** – Hemligheter lagras krypterat i ett dedikerat valv och hämtas utan lösenord via identitetsbaserad åtkomst.
 
 ### Beslut
-Vi valde **Azure Key Vault med System-Assigned Managed Identity**.
+Jag valde **Azure Key Vault med System-Assigned Managed Identity**.
 
 ### Motivering
 Hårdkodade hemligheter i kod eller versionshanterade filer är en av de vanligaste och allvarligaste säkerhetsbristerna (OWASP Top 10). Key Vault separerar hemligheter helt från koden och versionhanteringen. Med Managed Identity behövs inga lagrade credentials överhuvudtaget – Azure hanterar autentiseringen internt. Detta implementerar principen om minsta behörighet: Container App:en har tilldelats rollen **Key Vault Secrets Officer** vilket ger den tillgång att läsa hemligheter, men inte administrera Key Vault eller andra Azure-resurser.
