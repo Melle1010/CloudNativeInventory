@@ -1,117 +1,116 @@
 # CloudNativeInventory API
 
-Ett .NET 9 Web API för lagerhantering, byggt för att demonstrera containerisering, CI/CD och säker konfigurationshantering i Azure.
+A .NET 9 Web API for inventory management, built to demonstrate containerization, CI/CD, and secure configuration management in Azure.
 
-## Azure-tjänster
+## Azure Services
 
-| Tjänst | Användning |
+| Service | Usage |
 |---|---|
-| Azure Container Registry | Lagrar Docker-images privat |
-| Azure Container Apps | Kör applikationen i produktion |
-| Azure Key Vault | Lagrar hemligheter säkert |
-| Log Analytics Workspace | Loggning och övervakning |
+| Azure Container Registry | Stores Docker images privately |
+| Azure Container Apps | Runs the application in production |
+| Azure Key Vault | Stores secrets securely |
+| Log Analytics Workspace | Logging and monitoring |
 
-För motivering av dessa val, se [docs/adr-001-cloud-architecture.md](docs/adr-001-cloud-architecture.md).
+For the reasoning behind these choices, see [ADR-001](adr-001-cloud-architecture.md).
 
-Här är min dokumentation också [docs/K5U1%20Documentation.md](docs/K5U1%20Documentation.md).
+Full documentation is also available here: [Documentation](K5U1%20Documentation.md).
+
 ---
 
-## Köra API:t lokalt
+## Running the API Locally
 
-### Förutsättningar
+### Prerequisites
 - .NET 9 SDK
 - Docker Desktop
 
-### Steg
+### Steps
 
-1. Klona repot:
+1. Clone the repo:
 ```bash
 git clone https://github.com/Melle1010/CloudNativeInventory.git
 cd CloudNativeInventory
 ```
 
-2. Kör API:t:
+2. Run the API:
 ```bash
 dotnet run --project CloudNativeInventory.Api
 ```
 
-3. Testa att det fungerar:
+3. Verify it's working:
 ```
 GET http://localhost:5000/api/inventory
 ```
 
-Du ska få tillbaka en JSON-lista med en laptop.
+You should receive a JSON list containing a laptop and an IPhone.
 
-### Hemligheter lokalt
+### Secrets Locally
 
-Lokalt läser applikationen `VendorApiKey` från `appsettings.json`. Det värdet är en platshållare och används bara under utveckling – det är aldrig en riktig nyckel. I produktion hämtas nyckeln från Azure Key Vault via Managed Identity, och `appsettings.json` används inte.
+Locally, the application reads `VendorApiKey` from `appsettings.json`. That value is a placeholder and is only used during development — it is never a real key. In production, the key is fetched from Azure Key Vault via Managed Identity, and `appsettings.json` is not used.
 
-Checka aldrig in riktiga hemligheter i `appsettings.json`.
+### Running with Docker Locally
 
-### Köra med Docker lokalt
-
-Bygg och starta containern:
+Build and start the container:
 ```bash
 docker build -t inventory-api -f CloudNativeInventory.Api/Dockerfile CloudNativeInventory.Api
 docker run -p 8080:8080 inventory-api
 ```
 
-Testa:
+Test:
 ```
 GET http://localhost:8080/api/inventory
 ```
 
 ---
 
-## CI/CD-pipeline
+## CI/CD Pipeline
 
-Pipelinen finns i `.github/workflows/ci.yml` och består av två jobb.
+The pipeline is defined in `.github/workflows/ci.yml` and consists of two jobs.
 
-### Vad som triggar pipelinen
+### What Triggers the Pipeline
 
-| Händelse | CI (build + test) | CD (deploy) |
+| Event | CI (build + test) | CD (deploy) |
 |---|---|---|
-| Push till master | ✅ | ✅ |
-| Pull request mot master | ✅ | ❌ |
+| Push to master | ✅ | ✅ |
+| Pull request against master | ✅ | ❌ |
 
-Deploy körs alltså bara när kod mergas till master – aldrig vid öppna pull requests.
+Deploy only runs when code is merged to master — never on open pull requests.
 
-### Steg i CI-jobbet (build-and-test)
+### Steps in the CI Job (build-and-test)
 
-1. Checka ut koden
-2. Sätt upp .NET 9
-3. `dotnet restore` – hämtar NuGet-paket
-4. `dotnet build` – kompilerar projektet
-5. `dotnet test` – kör alla tester i `CloudNativeInventory.Tests`
+1. Check out the code
+2. Set up .NET 9
+3. `dotnet restore` – fetches NuGet packages
+4. `dotnet build` – compiles the project
+5. `dotnet test` – runs all tests in `CloudNativeInventory.Tests`
 
-Om något steg misslyckas stannar pipelinen och deploy körs inte.
+If any step fails, the pipeline stops and deploy does not run.
 
-### Steg i CD-jobbet (deploy)
+### Steps in the CD Job (deploy)
 
-1. Checka ut koden
-2. Logga in i Azure med `AZURE_CREDENTIALS` (GitHub Secret)
-3. Logga in i Azure Container Registry
-4. Bygg Docker-image och tagga med commit-SHA och `latest`
-5. Pusha imagen till ACR
-6. Uppdatera Container App med den nya imagen
+1. Check out the code
+2. Log in to Azure using `AZURE_CREDENTIALS` (GitHub Secret)
+3. Log in to Azure Container Registry
+4. Build Docker image and tag with commit SHA and `latest`
+5. Push the image to ACR
+6. Update the Container App with the new image
 
-Varje deploy taggas med commit-SHA (`github.sha`) för full spårbarhet – du kan alltid se exakt vilken kod som kör i produktion.
+Every deploy is tagged with the commit SHA (`github.sha`) for full traceability — you can always see exactly which code is running in production.
 
-### GitHub Secrets som krävs
+### Required GitHub Secrets
 
-| Secret | Beskrivning |
+| Secret | Description |
 |---|---|
-| `AZURE_CREDENTIALS` | JSON-credentials för Azure Service Principal |
+| `AZURE_CREDENTIALS` | JSON credentials for the Azure Service Principal |
 
 ---
 
-## Deploy och verifiering
+## Deploy and Verification
 
-### Automatisk deploy
+### Automatic Deploy
 
-Deploy sker automatiskt när du pushar eller mergar till `master`. Du behöver inte göra något manuellt.
+Deploy happens automatically when you push or merge to `master`. No manual action is required.
 
-### Manuell deploy (om det behövs)
+### Manual Deploy (if needed)
 
 ```bash
 az acr login --name melvin
@@ -129,38 +128,38 @@ az containerapp update \
   --image melvin.azurecr.io/inventory-api:latest
 ```
 
-### Verifiera att Key Vault fungerar i produktion
+### Verifying Key Vault in Production
 
-När appen är deployad, testa denna endpoint:
+Once the app is deployed, test this endpoint:
 
 ```
-GET https://<din-app-url>.azurecontainerapps.io/api/inventory/system/verify-integration
+GET https://<your-app-url>.azurecontainerapps.io/api/inventory/system/verify-integration
 ```
 
-Förväntat svar vid korrekt konfiguration:
+Expected response when correctly configured:
 ```json
 {
   "status": "Secured",
-  "message": "Hemlighet laddades framgångsrikt via säker konfiguration."
+  "message": "Secret was loaded successfully via secure configuration."
 }
 ```
 
-Om du istället får `"status": "Unsecured"` betyder det att appen inte kan nå Key Vault – kontrollera att Managed Identity är aktiverad och att den har rätt roll i Key Vault.
+If you instead get `"status": "Unsecured"`, the app cannot reach Key Vault — verify that Managed Identity is enabled and that it has the correct role in Key Vault.
 
-### Övriga endpoints
+### Other Endpoints
 
 ```
-GET /api/inventory                        Hämtar alla produkter
-GET /api/inventory/system/verify-integration  Verifierar Key Vault-integration
+GET /api/inventory                            Fetches all products
+GET /api/inventory/system/verify-integration  Verifies Key Vault integration
 ```
 
 ---
 
-## Arkitekturbeslut
+## Architecture Decisions
 
-Se [docs/adr-001-cloud-architecture.md](docs/adr-001-cloud-architecture.md) för fullständig motivering av:
+See [adr-001-cloud-architecture.md](adr-001-cloud-architecture.md) for the full rationale behind:
 
-- Val av Azure Container Apps över App Service
-- Val av Azure Container Registry över Docker Hub
-- Val av Key Vault med Managed Identity över hårdkodade hemligheter
-- Val av GitHub Actions för CI/CD
+- Choosing Azure Container Apps over App Service
+- Choosing Azure Container Registry over Docker Hub
+- Choosing Key Vault with Managed Identity over hardcoded secrets
+- Choosing GitHub Actions for CI/CD
