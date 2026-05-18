@@ -41,13 +41,11 @@ dotnet run --project CloudNativeInventory.Api
 GET http://localhost:5000/api/inventory
 ```
 
-You should receive a JSON list containing a laptop.
+You should receive a JSON list containing a laptop and an IPhone.
 
 ### Secrets Locally
 
 Locally, the application reads `VendorApiKey` from `appsettings.json`. That value is a placeholder and is only used during development — it is never a real key. In production, the key is fetched from Azure Key Vault via Managed Identity, and `appsettings.json` is not used.
-
-Never commit real secrets to `appsettings.json`.
 
 ### Running with Docker Locally
 
