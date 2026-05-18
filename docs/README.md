@@ -13,7 +13,7 @@ Ett .NET 9 Web API för lagerhantering, byggt för att demonstrera containeriser
 
 För motivering av dessa val, se [docs/adr-001-cloud-architecture.md](docs/adr-001-cloud-architecture.md).
 
-Här är min dokumentation också .
+Här är min dokumentation också [docs/K5U1_Documentation.md](docs/K5U1_Documentation.md).
 ---
 
 ## Köra API:t lokalt
